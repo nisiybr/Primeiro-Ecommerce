@@ -32,27 +32,37 @@ class CreateOrderService {
 
   public async execute({ customer_id, products }: IRequest): Promise<Order> {
     const findCustomer = await this.customersRepository.findById(customer_id);
+
     if (!findCustomer) {
       throw new AppError('Costumer does not exists');
     }
 
     const findProducts = await this.productsRepository.findAllById(products);
-    const parsedFindProducts = findProducts.map(product => ({
-      product_id: product.id,
-      price: product.price,
-    }));
+
+    if (!findProducts || products.length !== findProducts.length) {
+      throw new AppError('One or more of products do not exist');
+    }
+
+    // const parsedFindProducts = findProducts.map(product => ({
+    //   product_id: product.id,
+    //   price: product.price,
+    //   stockAmount: product.quantity,
+    // }));
 
     const productList = products.map(product => {
-      const productPrices = parsedFindProducts.filter(
-        item => item.product_id === product.id,
-      );
-      const { price } = productPrices[0];
+      const productData = findProducts.filter(item => item.id === product.id);
+      const { price, quantity, name } = productData[0];
+
+      if (product.quantity > quantity) {
+        throw new AppError(`Quantity of ${name} exceeds the stock limit`);
+      }
 
       const changedProduct = {
         product_id: product.id,
         price,
         quantity: product.quantity,
       };
+
       return changedProduct;
     });
 
@@ -60,6 +70,8 @@ class CreateOrderService {
       customer: findCustomer,
       products: productList,
     });
+
+    await this.productsRepository.updateQuantity(products);
 
     return order;
   }
