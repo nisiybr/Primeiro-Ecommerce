@@ -26,7 +26,7 @@ class Order {
     cascade: true,
     eager: true,
   })
-  orders_products: OrdersProducts[];
+  order_products: OrdersProducts[];
 
   @CreateDateColumn()
   created_at: Date;
